@@ -76,6 +76,32 @@ namespace zipsharp
 				return (long)info.UncompressedSize;
 		}
 		
+		static Tuple<string, CompressionOption> GetCurrentFileNameAndCompression(UnzipHandle handle)
+		{
+			UnzipFileInfo info;
+			string filename = String.Empty;
+			int result = unzGetCurrentFileInfo (handle, out info, null, IntPtr.Zero, IntPtr.Zero, new IntPtr (0), null,  IntPtr.Zero);
+
+			if (result != 0)
+				return null;
+
+			StringBuilder sbName = new StringBuilder ((int)info.SizeFilename+1); // +1 to account for extra \0 at the end
+			result = unzGetCurrentFileInfo (handle, out info, sbName, new IntPtr (sbName.Capacity), IntPtr.Zero, new IntPtr (0), null,  IntPtr.Zero);
+
+			if (result != 0)
+				return null;
+			else
+				filename = sbName.ToString ();
+
+			int method, compression;
+			// '0' means do not open in raw mode (raw == do not decompress)
+			if (unzOpenCurrentFile2 (handle, out method, out compression, 0) != 0)
+				throw new Exception ("The file could not be opened");
+
+			CompressionOption level = ConvertCompression (method == 0 ? 0 : compression);
+			return Tuple.Create (filename, level);
+		}
+
 		static string GetCurrentFileName (UnzipHandle handle)
 		{
 			UnzipFileInfo info;
@@ -93,21 +119,21 @@ namespace zipsharp
 				return sbName.ToString ();
 		}
 
-		public static string[] GetFiles (UnzipHandle handle)
+		public static Dictionary<string, CompressionOption> GetFiles (UnzipHandle handle)
 		{
-			List<string> files = new List<string> ();
+			var result = new Dictionary<string, CompressionOption> ();
 
 			GoToFirstFile (handle);
 
-			string name;
-			while ((name = GetCurrentFileName(handle)) != null)
+			Tuple<string, CompressionOption> info;
+			while ((info = GetCurrentFileNameAndCompression(handle)) != null)
 			{
-				files.Add (name);
+				result.Add (info.Item1, info.Item2);
 				if (!NativeUnzip.GoToNextFile (handle))
 					break;
 			}
 			
-			return files.ToArray ();
+			return result;
 		}
 
 		static void GoToFirstFile (UnzipHandle handle)

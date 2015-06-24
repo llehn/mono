@@ -24,18 +24,19 @@
 
 using System;
 using System.IO;
+using System.Collections.Generic;
 
 namespace zipsharp
 {
 	class UnzipArchive : IDisposable
 	{
-		string[] files;
+		Dictionary<string, System.IO.Packaging.CompressionOption> files;
 		
 		internal bool FileActive {
 			get; set;
 		}
 		
-		string[] Files {
+		Dictionary<string, System.IO.Packaging.CompressionOption> Files {
 			get {
 				if (files == null)
 					files = NativeUnzip.GetFiles (Handle);
@@ -77,28 +78,24 @@ namespace zipsharp
 
 		public System.IO.Packaging.CompressionOption GetCompressionLevel (string file)
 		{
-			using (UnzipReadStream stream = (UnzipReadStream) GetStream (file))
-				return stream.CompressionLevel;
+			return Files [file];
 		}
 
 		public string[] GetFiles ()
 		{
-			return (string []) Files.Clone ();
+			List<string> list = new List<string>(Files.Keys);
+			return list.ToArray ();
 		}
 
 		public Stream GetStream (string name)
 		{
-			foreach (string file in Files)
+			if (!Files.ContainsKey (name)) 
 			{
-				if (name.Equals(file, StringComparison.OrdinalIgnoreCase))
-				{
-					System.IO.Packaging.CompressionOption option;
-					NativeUnzip.OpenFile (Handle, name, out option);
-					return new UnzipReadStream (this, option);
-				}
+				throw new Exception ("The file doesn't exist in the zip archive");
 			}
-			
-			throw new Exception ("The file doesn't exist in the zip archive");
+			System.IO.Packaging.CompressionOption option;
+			NativeUnzip.OpenFile (Handle, name, out option);
+			return new UnzipReadStream (this, option);
 		}
 	}
 }
