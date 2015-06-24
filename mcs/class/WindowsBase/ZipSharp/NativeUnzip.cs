@@ -102,23 +102,6 @@ namespace zipsharp
 			return Tuple.Create (filename, level);
 		}
 
-		static string GetCurrentFileName (UnzipHandle handle)
-		{
-			UnzipFileInfo info;
-			int result = unzGetCurrentFileInfo (handle, out info, null, IntPtr.Zero, IntPtr.Zero, new IntPtr (0), null,  IntPtr.Zero);
-
-			if (result != 0)
-				return null;
-			
-			StringBuilder sbName = new StringBuilder ((int)info.SizeFilename+1); // +1 to account for extra \0 at the end
-			result = unzGetCurrentFileInfo (handle, out info, sbName, new IntPtr (sbName.Capacity), IntPtr.Zero, new IntPtr (0), null,  IntPtr.Zero);
-			
-			if (result != 0)
-				return null;
-			else
-				return sbName.ToString ();
-		}
-
 		public static Dictionary<string, CompressionOption> GetFiles (UnzipHandle handle)
 		{
 			var result = new Dictionary<string, CompressionOption> ();
